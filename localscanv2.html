@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LocalScan v2 — Scanner de commerces</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0f; --bg2: #111118; --bg3: #18181f; --bg4: #1e1e28;
+      --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.12);
+      --text: #f0f0f5; --text2: #9898a8; --text3: #5a5a6a;
+      --accent: #4f8dff; --accent2: #2563eb;
+      --green: #22d07a; --green-bg: rgba(34,208,122,0.08);
+      --red: #ff5b5b; --yellow: #fbbf24; --orange: #fb923c;
+      --purple: #a78bfa;
+      --radius: 10px; --radius-lg: 16px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 15px; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+    /* LAYOUT */
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 230px; min-height: 100vh; background: var(--bg2);
+      border-right: 1px solid var(--border); display: flex; flex-direction: column;
+      padding: 24px 0; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; padding: 0 22px 28px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+    .logo-icon { width: 34px; height: 34px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .logo-text { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.1rem; letter-spacing: -0.02em; }
+    .logo-text span { color: var(--accent); }
+    .nav { flex: 1; padding: 0 12px; display: flex; flex-direction: column; gap: 3px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--radius); color: var(--text2); font-size: 0.88rem; cursor: pointer; transition: all 0.15s; text-decoration: none; }
+    .nav-item:hover { background: var(--bg3); color: var(--text); }
+    .nav-item.active { background: rgba(79,141,255,0.12); color: var(--accent); font-weight: 500; }
+    .nav-item svg { width: 17px; height: 17px; flex-shrink: 0; }
+    .sidebar-footer { padding: 16px 22px 0; border-top: 1px solid var(--border); margin-top: auto; }
+    .api-status { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--text3); }
+    .api-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text3); flex-shrink: 0; transition: background 0.3s; }
+    .api-dot.ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+    .main { margin-left: 230px; flex: 1; display: flex; flex-direction: column; }
+
+    /* TOPBAR */
+    .topbar { padding: 18px 32px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--bg); position: sticky; top: 0; z-index: 50; }
+    .topbar-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.2rem; }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .api-input-wrap { display: flex; align-items: center; gap: 8px; }
+    .api-input-wrap label { font-size: 0.8rem; color: var(--text2); white-space: nowrap; }
+    .api-input-wrap input { background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--radius); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.82rem; padding: 7px 12px; width: 220px; outline: none; transition: border 0.2s; }
+    .api-input-wrap input:focus { border-color: var(--accent); }
+
+    .btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
+    .btn-ghost { background: var(--bg3); color: var(--text2); border: 1px solid var(--border2); }
+    .btn-ghost:hover { background: var(--bg4); color: var(--text); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent2); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn svg { width: 16px; height: 16px; }
+
+    .content { padding: 28px 32px; flex: 1; }
+
+    /* CONTROLS */
+    .controls-bar { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+    .radius-control { display: flex; align-items: center; gap: 10px; }
+    .radius-control label { font-size: 0.82rem; color: var(--text2); }
+    .radius-control input[type=range] { width: 160px; accent-color: var(--accent); }
+    .radius-val { font-family: 'Syne', sans-serif; font-size: 0.88rem; font-weight: 600; color: var(--accent); min-width: 52px; }
+    .type-filter { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .type-chip { padding: 5px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 500; cursor: pointer; border: 1px solid var(--border2); background: var(--bg3); color: var(--text2); transition: all 0.15s; }
+    .type-chip.active { background: rgba(79,141,255,0.15); border-color: var(--accent); color: var(--accent); }
+
+    /* MAP */
+    .map-section { border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border2); position: relative; margin-bottom: 24px; height: 380px; background: var(--bg3); }
+    #map { width: 100%; height: 100%; }
+    .map-overlay { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(10,10,15,0.85); border: 1px solid var(--border2); border-radius: var(--radius); padding: 7px 16px; font-size: 0.8rem; color: var(--text2); pointer-events: none; backdrop-filter: blur(8px); white-space: nowrap; z-index: 10; }
+    .map-overlay.hidden { display: none; }
+
+    /* STATS */
+    .stats-row { display: grid; grid-template-columns: repeat(5,1fr); gap: 12px; margin-bottom: 24px; }
+    .stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px 20px; transition: border 0.2s; }
+    .stat-card:hover { border-color: var(--border2); }
+    .stat-label { font-size: 0.75rem; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+    .stat-val { font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800; line-height: 1; }
+    .stat-val.blue { color: var(--accent); }
+    .stat-val.green { color: var(--green); }
+    .stat-val.yellow { color: var(--yellow); }
+
+    /* RÉSUMÉ INTELLIGENT */
+    .insight-bar {
+      display: none; gap: 10px; flex-wrap: wrap; align-items: center;
+      padding: 12px 18px; margin-bottom: 18px;
+      background: linear-gradient(135deg, rgba(79,141,255,0.06), rgba(167,139,250,0.06));
+      border: 1px solid rgba(79,141,255,0.2); border-radius: var(--radius);
+      font-size: 0.82rem; color: var(--text2); line-height: 1.6;
+    }
+    .insight-bar.visible { display: flex; }
+    .insight-bar strong { color: var(--text); }
+    .insight-tag {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 500;
+    }
+    .insight-tag.good { background: var(--green-bg); color: var(--green); }
+    .insight-tag.warn { background: rgba(251,191,36,0.1); color: var(--yellow); }
+    .insight-tag.info { background: rgba(79,141,255,0.12); color: var(--accent); }
+    .insight-tag.hot  { background: rgba(251,146,60,0.12); color: var(--orange); }
+
+    /* STATUS BAR */
+    .status-bar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: var(--bg3); border-radius: var(--radius); font-size: 0.82rem; color: var(--text2); margin-bottom: 20px; min-height: 40px; }
+    .loader { display: flex; gap: 4px; align-items: center; }
+    .loader span { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s infinite; }
+    .loader span:nth-child(2) { animation-delay: 0.2s; }
+    .loader span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes pulse { 0%,100%{opacity:.2;transform:scale(.8)} 50%{opacity:1;transform:scale(1)} }
+
+    /* SEARCH + SORT BAR */
+    .table-toolbar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 16px; background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+    }
+    .search-input-wrap { display: flex; align-items: center; gap: 8px; flex: 1; }
+    .search-input-wrap svg { width: 15px; height: 15px; color: var(--text3); flex-shrink: 0; }
+    .search-input-wrap input {
+      background: transparent; border: none; outline: none;
+      color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.85rem;
+      width: 100%;
+    }
+    .search-input-wrap input::placeholder { color: var(--text3); }
+    .sort-select {
+      background: var(--bg4); border: 1px solid var(--border2); border-radius: 8px;
+      color: var(--text2); font-family: 'DM Sans', sans-serif; font-size: 0.78rem;
+      padding: 5px 10px; outline: none; cursor: pointer;
+    }
+    .sort-select:focus { border-color: var(--accent); }
+
+    /* TABS */
+    .tabs-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .tabs { display: flex; gap: 4px; }
+    .tab { display: flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: var(--radius); font-size: 0.85rem; cursor: pointer; color: var(--text2); border: 1px solid transparent; transition: all 0.15s; }
+    .tab:hover { background: var(--bg3); color: var(--text); }
+    .tab.active { background: rgba(79,141,255,0.12); color: var(--accent); border-color: rgba(79,141,255,0.25); font-weight: 500; }
+    .tab-badge { background: var(--bg4); border-radius: 20px; padding: 1px 7px; font-size: 0.72rem; color: var(--text3); }
+    .tab.active .tab-badge { background: rgba(79,141,255,0.2); color: var(--accent); }
+    .export-btns { display: flex; gap: 8px; }
+
+    /* TABLE */
+    .table-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+    .table-inner { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    thead th {
+      background: var(--bg3); padding: 12px 16px; text-align: left;
+      font-size: 0.73rem; text-transform: uppercase; letter-spacing: 0.07em;
+      color: var(--text3); font-weight: 500; border-bottom: 1px solid var(--border);
+      white-space: nowrap; cursor: pointer; user-select: none; transition: color 0.15s;
+    }
+    thead th:hover { color: var(--text2); }
+    thead th.sort-asc::after { content: ' ↑'; color: var(--accent); }
+    thead th.sort-desc::after { content: ' ↓'; color: var(--accent); }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; cursor: pointer; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(79,141,255,0.04); }
+    tbody td { padding: 11px 16px; color: var(--text); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    td.muted { color: var(--text3); }
+    td a { color: var(--accent); text-decoration: none; font-size: 0.8rem; }
+    td a:hover { text-decoration: underline; }
+
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.72rem; font-weight: 500; }
+    .badge-green { background: var(--green-bg); color: var(--green); }
+    .badge-gray  { background: var(--bg4); color: var(--text3); }
+    .badge-blue  { background: rgba(79,141,255,0.12); color: var(--accent); }
+    .badge-yellow{ background: rgba(251,191,36,0.1); color: var(--yellow); }
+    .badge-orange{ background: rgba(251,146,60,0.12); color: var(--orange); }
+    .badge-purple{ background: rgba(167,139,250,0.12); color: var(--purple); }
+
+    /* SCORE BADGE */
+    .score-ring {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border-radius: 50%;
+      font-family: 'Syne', sans-serif; font-size: 0.7rem; font-weight: 800;
+      border: 2px solid; flex-shrink: 0;
+    }
+    .score-ring.high { border-color: var(--green); color: var(--green); background: var(--green-bg); }
+    .score-ring.mid  { border-color: var(--yellow); color: var(--yellow); background: rgba(251,191,36,0.08); }
+    .score-ring.low  { border-color: var(--text3); color: var(--text3); background: transparent; }
+
+    /* STATUT CRM */
+    .status-select {
+      background: var(--bg3); border: 1px solid var(--border2); border-radius: 6px;
+      color: var(--text2); font-size: 0.72rem; padding: 2px 6px; cursor: pointer; outline: none;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .status-select.s-nouveau   { border-color: var(--border2); color: var(--text3); }
+    .status-select.s-contacte  { border-color: var(--accent); color: var(--accent); background: rgba(79,141,255,0.08); }
+    .status-select.s-interesse { border-color: var(--green); color: var(--green); background: var(--green-bg); }
+    .status-select.s-negatif   { border-color: var(--red); color: var(--red); background: rgba(255,91,91,0.08); }
+    .status-select.s-client    { border-color: var(--purple); color: var(--purple); background: rgba(167,139,250,0.1); }
+
+    /* NOTE INLINE */
+    .note-cell { position: relative; }
+    .note-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--text3); font-size: 0.78rem; padding: 2px 6px;
+      border-radius: 4px; transition: all 0.15s;
+    }
+    .note-btn:hover { background: var(--bg4); color: var(--yellow); }
+    .note-btn.has-note { color: var(--yellow); }
+
+    /* SCRAPE PROGRESS */
+    .scrape-bar { display: none; align-items: center; gap: 12px; padding: 10px 16px; background: rgba(79,141,255,0.06); border: 1px solid rgba(79,141,255,0.2); border-radius: var(--radius); font-size: 0.82rem; color: var(--text2); margin-bottom: 16px; }
+    .scrape-bar.visible { display: flex; }
+    .scrape-count { font-family: 'Syne', sans-serif; font-size: 0.8rem; color: var(--accent); white-space: nowrap; }
+    .email-link { color: var(--green); text-decoration: none; font-size: 0.78rem; }
+    .email-link:hover { text-decoration: underline; }
+
+    .empty-state { padding: 60px 20px; text-align: center; color: var(--text3); }
+    .empty-state svg { width: 40px; height: 40px; margin-bottom: 12px; opacity: 0.3; }
+    .empty-state p { font-size: 0.88rem; }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* CATEGORY GROUPS */
+    .cat-group { }
+    .cat-header { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: var(--bg3); cursor: pointer; user-select: none; border-bottom: 1px solid var(--border); transition: background 0.15s; }
+    .cat-header:hover { background: var(--bg4); }
+    .cat-icon { font-size: 1rem; }
+    .cat-name { font-family: 'Syne', sans-serif; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text2); flex: 1; }
+    .cat-count { background: var(--bg4); border-radius: 20px; padding: 2px 9px; font-size: 0.72rem; color: var(--text3); font-family: 'Syne', sans-serif; }
+    .cat-chevron { width: 14px; height: 14px; color: var(--text3); transition: transform 0.2s; flex-shrink: 0; }
+    .cat-group.collapsed .cat-chevron { transform: rotate(-90deg); }
+    .cat-group.collapsed .cat-body { display: none; }
+
+    /* FICHE PANEL LATÉRAL */
+    .detail-panel {
+      position: fixed; top: 0; right: -440px; width: 420px; height: 100vh;
+      background: var(--bg2); border-left: 1px solid var(--border2);
+      z-index: 200; display: flex; flex-direction: column;
+      transition: right 0.28s cubic-bezier(.4,0,.2,1);
+      box-shadow: -12px 0 40px rgba(0,0,0,0.4);
+      overflow: hidden;
+    }
+    .detail-panel.open { right: 0; }
+    .detail-header { display: flex; align-items: flex-start; justify-content: space-between; padding: 22px 22px 16px; border-bottom: 1px solid var(--border); }
+    .detail-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.1rem; line-height: 1.3; flex: 1; margin-right: 12px; }
+    .detail-close { background: none; border: none; cursor: pointer; color: var(--text3); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: all 0.15s; flex-shrink: 0; }
+    .detail-close:hover { background: var(--bg3); color: var(--text); }
+    .detail-body { flex: 1; overflow-y: auto; padding: 18px 22px; display: flex; flex-direction: column; gap: 18px; }
+    .detail-section { display: flex; flex-direction: column; gap: 8px; }
+    .detail-section-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); font-weight: 500; }
+    .detail-row { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; }
+    .detail-row svg { width: 15px; height: 15px; color: var(--text3); flex-shrink: 0; }
+    .detail-row a { color: var(--accent); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .detail-row a:hover { text-decoration: underline; }
+    .detail-score-row { display: flex; align-items: center; gap: 12px; }
+    .detail-score-label { font-size: 0.8rem; color: var(--text2); }
+    .detail-score-bar { flex: 1; height: 6px; background: var(--bg4); border-radius: 3px; overflow: hidden; }
+    .detail-score-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+    .note-textarea {
+      width: 100%; background: var(--bg3); border: 1px solid var(--border2);
+      border-radius: 8px; color: var(--text); font-family: 'DM Sans', sans-serif;
+      font-size: 0.83rem; padding: 10px 12px; resize: vertical; min-height: 80px;
+      outline: none; transition: border 0.2s; line-height: 1.5;
+    }
+    .note-textarea:focus { border-color: var(--accent); }
+    .detail-actions { display: flex; gap: 8px; flex-wrap: wrap; padding: 16px 22px; border-top: 1px solid var(--border); }
+    .detail-status-row { display: flex; align-items: center; gap: 10px; }
+    .detail-status-label { font-size: 0.8rem; color: var(--text2); }
+    .status-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+    .status-pill {
+      padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 500;
+      cursor: pointer; border: 1px solid var(--border2); background: var(--bg3);
+      color: var(--text2); transition: all 0.15s;
+    }
+    .status-pill:hover { border-color: var(--border2); background: var(--bg4); }
+    .status-pill.active-nouveau   { border-color: var(--text3); color: var(--text3); background: var(--bg4); }
+    .status-pill.active-contacte  { border-color: var(--accent); color: var(--accent); background: rgba(79,141,255,0.1); }
+    .status-pill.active-interesse { border-color: var(--green); color: var(--green); background: var(--green-bg); }
+    .status-pill.active-negatif   { border-color: var(--red); color: var(--red); background: rgba(255,91,91,0.08); }
+    .status-pill.active-client    { border-color: var(--purple); color: var(--purple); background: rgba(167,139,250,0.1); }
+
+    /* OVERLAY */
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 190; backdrop-filter: blur(2px); }
+    .overlay.open { display: block; }
+
+    /* PROGRESS */
+    .progress-bar-wrap { height: 3px; background: var(--bg3); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+    .progress-bar { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; transition: width 0.3s; }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+
+    @media (max-width: 1100px) { .stats-row { grid-template-columns: repeat(3, 1fr); } }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">📍</div>
+      <div class="logo-text">Local<span>Scan</span> <span style="font-size:0.65rem;color:var(--green);background:var(--green-bg);padding:1px 6px;border-radius:4px;vertical-align:middle;">v2</span></div>
+    </div>
+    <nav class="nav">
+      <a class="nav-item active" href="#">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+        Scanner
+      </a>
+      <a class="nav-item" href="#" onclick="showHistory()">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Historique
+      </a>
+      <a class="nav-item" href="#" onclick="showSettings()">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Paramètres
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="api-status">
+        <div class="api-dot" id="api-dot"></div>
+        <span id="api-status-text">API non configurée</span>
+      </div>
+      <div class="api-status" style="margin-top:10px;">
+        <div class="api-dot" id="proxy-dot"></div>
+        <span id="proxy-status-text">Proxy non détecté</span>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title">Scanner de zone</div>
+      <div class="topbar-right">
+        <div class="api-input-wrap">
+          <label>🔑 Clé API Google</label>
+          <input type="password" id="api-key" placeholder="AIza..." autocomplete="off" />
+        </div>
+        <button class="btn btn-ghost" id="apply-btn" onclick="applyKey()">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          Appliquer
+        </button>
+        <button class="btn btn-primary" id="scan-btn" disabled onclick="runScan()">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          Scanner
+        </button>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="controls-bar">
+        <div class="radius-control">
+          <label>Rayon :</label>
+          <input type="range" id="radius" min="100" max="5000" step="100" value="1000" oninput="updateRadius(this.value)" />
+          <span class="radius-val" id="radius-label">1 000 m</span>
+        </div>
+        <div class="type-filter" id="type-chips">
+          <span class="type-chip active" data-type="">Tous</span>
+          <span class="type-chip" data-type="restaurant">🍽 Restaurants</span>
+          <span class="type-chip" data-type="store">🛍 Commerces</span>
+          <span class="type-chip" data-type="supermarket">🛒 Supermarchés</span>
+          <span class="type-chip" data-type="grocery_or_supermarket">🥦 Alimentation</span>
+          <span class="type-chip" data-type="warehouse">🏭 Logistique</span>
+          <span class="type-chip" data-type="health">🏥 Santé</span>
+          <span class="type-chip" data-type="beauty_salon">💅 Beauté</span>
+          <span class="type-chip" data-type="real_estate_agency">🏠 Immobilier</span>
+          <span class="type-chip" data-type="lawyer">⚖️ Services</span>
+        </div>
+      </div>
+
+      <div class="map-section">
+        <div id="map"></div>
+        <div class="map-overlay" id="map-hint">Entrez votre clé API et cliquez sur la carte pour choisir le centre</div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Total trouvés</div>
+          <div class="stat-val blue" id="s-total">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avec téléphone</div>
+          <div class="stat-val" id="s-tel">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avec site web</div>
+          <div class="stat-val green" id="s-mail">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Emails trouvés</div>
+          <div class="stat-val" style="color:var(--yellow)" id="s-email">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Tél + Site web</div>
+          <div class="stat-val yellow" id="s-both">—</div>
+        </div>
+      </div>
+
+      <!-- RÉSUMÉ INTELLIGENT -->
+      <div class="insight-bar" id="insight-bar"></div>
+
+      <div class="status-bar" id="status-bar">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-width="2" d="M12 8v4m0 4h.01"/></svg>
+        Configurez votre clé API, puis cliquez sur la carte pour choisir une zone.
+      </div>
+
+      <div class="tabs-header">
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab(0)">📋 Fiche complète <span class="tab-badge" id="badge-0">0</span></div>
+          <div class="tab" onclick="switchTab(1)">🌐 Tél + Site <span class="tab-badge" id="badge-1">0</span></div>
+          <div class="tab" onclick="switchTab(2)">🌐 Site web <span class="tab-badge" id="badge-2">0</span></div>
+          <div class="tab" onclick="switchTab(3)">✉️ Emails <span class="tab-badge" id="badge-3">0</span></div>
+        </div>
+        <div class="export-btns">
+          <button class="btn btn-ghost" id="scrape-btn" disabled onclick="runEmailScrape()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            Scraper emails
+          </button>
+          <button class="btn btn-ghost" id="exp-csv" disabled onclick="exportCSV()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            CSV
+          </button>
+          <button class="btn btn-ghost" id="exp-json" disabled onclick="exportJSON()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+            JSON
+          </button>
+        </div>
+      </div>
+
+      <div class="scrape-bar" id="scrape-bar">
+        <div class="loader"><span></span><span></span><span></span></div>
+        <span id="scrape-status-text">Scraping en cours...</span>
+        <div class="progress-bar-wrap" style="flex:1;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;">
+          <div class="progress-bar" id="scrape-progress"></div>
+        </div>
+        <span class="scrape-count" id="scrape-count">0 / 0</span>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-toolbar">
+          <div class="search-input-wrap">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <input type="text" id="search-input" placeholder="Rechercher par nom, adresse..." oninput="renderAll()" />
+          </div>
+          <select class="sort-select" id="sort-select" onchange="renderAll()">
+            <option value="default">Tri par défaut</option>
+            <option value="score-desc">Score ↓ (meilleures cibles)</option>
+            <option value="name-asc">Nom A→Z</option>
+            <option value="name-desc">Nom Z→A</option>
+            <option value="rating-desc">Note ↓</option>
+            <option value="status">Statut CRM</option>
+          </select>
+        </div>
+        <div class="table-inner">
+          <div class="panel active" id="panel-0"></div>
+          <div class="panel" id="panel-1"></div>
+          <div class="panel" id="panel-2"></div>
+          <div class="panel" id="panel-3"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OVERLAY + FICHE DÉTAIL -->
+<div class="overlay" id="overlay" onclick="closeDetail()"></div>
+<div class="detail-panel" id="detail-panel">
+  <div class="detail-header">
+    <div>
+      <div class="detail-name" id="dp-name"></div>
+      <div id="dp-cat" style="font-size:0.78rem;color:var(--text3);margin-top:3px;"></div>
+    </div>
+    <button class="detail-close" onclick="closeDetail()">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="detail-body">
+    <div class="detail-section">
+      <div class="detail-section-title">Coordonnées</div>
+      <div class="detail-row" id="dp-address"></div>
+      <div class="detail-row" id="dp-phone"></div>
+      <div class="detail-row" id="dp-email"></div>
+      <div class="detail-row" id="dp-website"></div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">Score de contactabilité</div>
+      <div class="detail-score-row">
+        <span class="score-ring" id="dp-score-ring"></span>
+        <div style="flex:1">
+          <div class="detail-score-bar">
+            <div class="detail-score-fill" id="dp-score-fill"></div>
+          </div>
+          <div style="font-size:0.75rem;color:var(--text3);margin-top:4px;" id="dp-score-detail"></div>
+        </div>
+      </div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">Statut CRM</div>
+      <div class="status-pills" id="dp-status-pills"></div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">Note interne</div>
+      <textarea class="note-textarea" id="dp-note" placeholder="Ajouter une note..." oninput="saveDetailNote()"></textarea>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">Liens rapides</div>
+      <div id="dp-links" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+  </div>
+  <div class="detail-actions">
+    <button class="btn btn-ghost" onclick="copyDetailInfo()" style="font-size:0.8rem;padding:6px 12px;">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+      Copier infos
+    </button>
+    <button class="btn btn-ghost" onclick="openGoogleMaps()" style="font-size:0.8rem;padding:6px 12px;">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      Google Maps
+    </button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+let map, circle, markerPin, placesService;
+let apiKey = '';
+let selectedLat = null, selectedLng = null;
+let allResults = [];
+let activeTab = 0;
+let selectedType = '';
+let currentDetailIdx = null;
+
+// CRM data stored in localStorage
+function crmKey(name, address) { return 'crm_' + btoa(encodeURIComponent((name+address).slice(0,60))); }
+function getCRM(r) {
+  try { return JSON.parse(localStorage.getItem(crmKey(r.name, r.address)) || '{}'); }
+  catch(e) { return {}; }
+}
+function setCRM(r, data) {
+  localStorage.setItem(crmKey(r.name, r.address), JSON.stringify(data));
+}
+
+// ═══════════════════════════════════════
+// SCORE DE CONTACTABILITÉ
+// ═══════════════════════════════════════
+function computeScore(r) {
+  let s = 0;
+  if (r.phone) s += 25;
+  if (r.website) s += 20;
+  if (r.email) s += 40;
+  if (r.rating >= 4.0) s += 10;
+  else if (r.rating >= 3.0) s += 5;
+  const crm = getCRM(r);
+  if (crm.status === 'interesse') s += 5;
+  if (crm.status === 'client') s = 100;
+  if (crm.status === 'negatif') s = Math.max(0, s - 30);
+  return Math.min(100, s);
+}
+
+function scoreClass(s) { return s >= 70 ? 'high' : s >= 35 ? 'mid' : 'low'; }
+function scoreColor(s) { return s >= 70 ? 'var(--green)' : s >= 35 ? 'var(--yellow)' : 'var(--text3)'; }
+
+// ═══════════════════════════════════════
+// RÉSUMÉ INTELLIGENT
+// ═══════════════════════════════════════
+function buildInsights(data) {
+  if (!data.length) { document.getElementById('insight-bar').classList.remove('visible'); return; }
+  const noSite   = data.filter(r => !r.website).length;
+  const noPhone  = data.filter(r => !r.phone).length;
+  const withEmail= data.filter(r => r.email).length;
+  const highScore= data.filter(r => computeScore(r) >= 70).length;
+  const cats = {};
+  data.forEach(r => { const c = getCategoryForRecord(r); cats[c] = (cats[c]||0)+1; });
+  const topCat = CATEGORIES.find(c => cats[c.key] === Math.max(...Object.values(cats)));
+
+  const tags = [];
+  if (highScore > 0) tags.push(`<span class="insight-tag hot">🎯 ${highScore} cible${highScore>1?'s':''} prioritaire${highScore>1?'s':''}</span>`);
+  if (noSite > 0)   tags.push(`<span class="insight-tag warn">⚠️ ${noSite} sans site web</span>`);
+  if (withEmail > 0) tags.push(`<span class="insight-tag good">✉️ ${withEmail} email${withEmail>1?'s':''} trouvé${withEmail>1?'s':''}</span>`);
+  if (topCat)        tags.push(`<span class="insight-tag info">${topCat.icon} Majorité : ${topCat.label} (${cats[topCat.key]})</span>`);
+  if (noPhone > data.length * 0.5) tags.push(`<span class="insight-tag warn">📵 ${noPhone} sans téléphone</span>`);
+
+  const bar = document.getElementById('insight-bar');
+  bar.innerHTML = `<strong>Analyse de la zone</strong> — ${data.length} établissements scannés &nbsp;` + tags.join(' ');
+  bar.classList.add('visible');
+}
+
+// ═══════════════════════════════════════
+// CATÉGORIES
+// ═══════════════════════════════════════
+const CATEGORIES = [
+  { key: 'restaurant',         label: 'Restaurants & Cafés',             icon: '🍽',  types: ['restaurant','cafe','bar','bakery','meal_takeaway','meal_delivery','food'] },
+  { key: 'supermarket',        label: 'Supermarchés & Grande Distribution', icon: '🛒', types: ['supermarket','grocery_or_supermarket','hypermarket','convenience_store'] },
+  { key: 'store',              label: 'Commerces & Boutiques',           icon: '🛍',  types: ['store','clothing_store','shoe_store','jewelry_store','book_store','electronics_store','furniture_store','hardware_store','home_goods_store','pet_store','bicycle_store','car_dealer','shopping_mall','department_store'] },
+  { key: 'warehouse',          label: 'Logistique & Industrie',          icon: '🏭',  types: ['warehouse','storage','moving_company','transit_station','logistics','industrial'] },
+  { key: 'health',             label: 'Santé & Médical',                 icon: '🏥',  types: ['doctor','hospital','pharmacy','dentist','physiotherapist','veterinary_care','health','drugstore'] },
+  { key: 'beauty_salon',       label: 'Beauté & Bien-être',              icon: '💅',  types: ['beauty_salon','hair_care','spa','gym','stadium'] },
+  { key: 'real_estate_agency', label: 'Immobilier',                      icon: '🏠',  types: ['real_estate_agency'] },
+  { key: 'services',           label: 'Services & Professions',          icon: '⚖️',  types: ['lawyer','accounting','bank','insurance_agency','travel_agency','car_repair','car_wash','laundry','locksmith','electrician','plumber','painter','roofing_contractor','general_contractor'] },
+  { key: 'lodging',            label: 'Hébergement',                     icon: '🏨',  types: ['lodging','hotel','motel','campground'] },
+  { key: 'education',          label: 'Éducation',                       icon: '🎓',  types: ['school','university','library'] },
+  { key: 'other',              label: 'Autres',                          icon: '📌',  types: [] },
+];
+
+function getCategoryForRecord(r) {
+  if (!r.types || !r.types.length) return 'other';
+  for (const cat of CATEGORIES) {
+    if (cat.key === 'other') continue;
+    if (r.types.some(t => cat.types.includes(t))) return cat.key;
+  }
+  return 'other';
+}
+
+// ═══════════════════════════════════════
+// FICHE DÉTAIL
+// ═══════════════════════════════════════
+const STATUS_OPTS = [
+  { value: 'nouveau',   label: '⬜ Nouveau' },
+  { value: 'contacte',  label: '📤 Contacté' },
+  { value: 'interesse', label: '✅ Intéressé' },
+  { value: 'negatif',   label: '❌ Négatif' },
+  { value: 'client',    label: '⭐ Client' },
+];
+
+function openDetail(idx) {
+  currentDetailIdx = idx;
+  const r = allResults[idx];
+  const crm = getCRM(r);
+  const score = computeScore(r);
+  const cat = CATEGORIES.find(c => c.key === getCategoryForRecord(r));
+
+  document.getElementById('dp-name').textContent = r.name;
+  document.getElementById('dp-cat').textContent = cat ? cat.icon + ' ' + cat.label : '';
+
+  // Coordonnées
+  const addrEl = document.getElementById('dp-address');
+  addrEl.innerHTML = r.address
+    ? `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg><span style="color:var(--text2)">${esc(r.address)}</span>`
+    : '';
+  addrEl.style.display = r.address ? '' : 'none';
+
+  const phoneEl = document.getElementById('dp-phone');
+  phoneEl.innerHTML = r.phone
+    ? `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg><span style="color:var(--green)">${esc(r.phone)}</span>`
+    : `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg><span style="color:var(--text3)">Pas de téléphone</span>`;
+
+  const emailEl = document.getElementById('dp-email');
+  emailEl.innerHTML = r.email
+    ? `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg><a href="mailto:${esc(r.email)}" style="color:var(--green)">${esc(r.email)}</a>`
+    : `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg><span style="color:var(--text3)">${r.website && !r._scraped ? 'Email non scrapé' : 'Pas d\'email'}</span>`;
+
+  const webEl = document.getElementById('dp-website');
+  webEl.innerHTML = r.website
+    ? `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg><a href="${esc(r.website)}" target="_blank">${r.website.replace(/^https?:\/\/(www\.)?/,'').slice(0,45)}</a>`
+    : `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg><span style="color:var(--text3)">Pas de site web</span>`;
+
+  // Score
+  const ring = document.getElementById('dp-score-ring');
+  ring.textContent = score;
+  ring.className = 'score-ring ' + scoreClass(score);
+  const fill = document.getElementById('dp-score-fill');
+  fill.style.width = score + '%';
+  fill.style.background = scoreColor(score);
+  const parts = [];
+  if (r.phone) parts.push('📞 +25');
+  if (r.website) parts.push('🌐 +20');
+  if (r.email) parts.push('✉️ +40');
+  if (r.rating >= 4) parts.push('⭐ +10');
+  document.getElementById('dp-score-detail').textContent = parts.join('  ') || 'Aucun contact disponible';
+
+  // Statut CRM
+  const pillsEl = document.getElementById('dp-status-pills');
+  pillsEl.innerHTML = STATUS_OPTS.map(opt => `
+    <span class="status-pill ${(crm.status||'nouveau') === opt.value ? 'active-'+opt.value : ''}"
+      onclick="setDetailStatus('${opt.value}')">${opt.label}</span>
+  `).join('');
+
+  // Note
+  document.getElementById('dp-note').value = crm.note || '';
+
+  // Liens rapides
+  const linksEl = document.getElementById('dp-links');
+  const links = [];
+  if (r.name) links.push(`<a href="https://www.google.com/search?q=${encodeURIComponent(r.name+' '+r.address)}" target="_blank" style="color:var(--accent);font-size:0.82rem;display:flex;align-items:center;gap:6px;"><svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>Rechercher sur Google</a>`);
+  if (r.name) links.push(`<a href="https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(r.name)}" target="_blank" style="color:var(--accent);font-size:0.82rem;display:flex;align-items:center;gap:6px;"><svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>Chercher sur LinkedIn</a>`);
+  if (r.address) links.push(`<a href="https://www.google.com/maps/search/${encodeURIComponent(r.address)}" target="_blank" style="color:var(--accent);font-size:0.82rem;display:flex;align-items:center;gap:6px;"><svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>Voir sur Maps</a>`);
+  linksEl.innerHTML = links.join('');
+
+  document.getElementById('detail-panel').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+  currentDetailIdx = null;
+}
+
+function setDetailStatus(val) {
+  if (currentDetailIdx === null) return;
+  const r = allResults[currentDetailIdx];
+  const crm = getCRM(r);
+  crm.status = val;
+  setCRM(r, crm);
+  // Refresh pills
+  document.querySelectorAll('.status-pill').forEach(p => {
+    p.className = 'status-pill';
+    const sv = p.getAttribute('onclick').match(/'(\w+)'/)[1];
+    if (sv === val) p.classList.add('active-'+val);
+  });
+  renderAll();
+}
+
+function saveDetailNote() {
+  if (currentDetailIdx === null) return;
+  const r = allResults[currentDetailIdx];
+  const crm = getCRM(r);
+  crm.note = document.getElementById('dp-note').value;
+  setCRM(r, crm);
+  renderAll();
+}
+
+function copyDetailInfo() {
+  if (currentDetailIdx === null) return;
+  const r = allResults[currentDetailIdx];
+  const lines = [r.name, r.address, r.phone, r.email, r.website].filter(Boolean);
+  navigator.clipboard.writeText(lines.join('\n')).then(() => setStatus('✅ Infos copiées dans le presse-papier.'));
+}
+
+function openGoogleMaps() {
+  if (currentDetailIdx === null) return;
+  const r = allResults[currentDetailIdx];
+  window.open('https://www.google.com/maps/search/' + encodeURIComponent(r.address || r.name), '_blank');
+}
+
+// ═══════════════════════════════════════
+// RADIUS & CHIPS
+// ═══════════════════════════════════════
+function updateRadius(v) {
+  const val = parseInt(v);
+  document.getElementById('radius-label').textContent = val >= 1000
+    ? (val/1000).toLocaleString('fr-FR') + ' km' : val + ' m';
+  if (circle) circle.setRadius(val);
+}
+
+document.querySelectorAll('.type-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.type-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    selectedType = chip.dataset.type;
+    if (allResults.length) renderAll();
+  });
+});
+
+// ═══════════════════════════════════════
+// API KEY & MAP
+// ═══════════════════════════════════════
+function applyKey() {
+  apiKey = document.getElementById('api-key').value.trim();
+  if (!apiKey) return;
+  setStatus('⏳ Chargement de Google Maps...');
+  loadGoogleMaps();
+}
+
+function loadGoogleMaps() {
+  if (window.google && window.google.maps) { initMap(); return; }
+  const s = document.createElement('script');
+  s.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=__gmapInit`;
+  s.onerror = () => setStatus('❌ Clé API invalide ou erreur réseau.');
+  document.head.appendChild(s);
+  window.__gmapInit = initMap;
+}
+
+function initMap() {
+  setStatus('✅ Carte chargée — cliquez pour choisir le centre du scan.');
+  document.getElementById('api-dot').className = 'api-dot ok';
+  document.getElementById('api-status-text').textContent = 'API connectée';
+  document.getElementById('map-hint').className = 'map-overlay hidden';
+  const center = { lat: 48.8566, lng: 2.3522 };
+  map = new google.maps.Map(document.getElementById('map'), {
+    center, zoom: 13, mapTypeControl: false, streetViewControl: false, fullscreenControl: true,
+    styles: [
+      { elementType: 'geometry', stylers: [{ color: '#1a1a2e' }] },
+      { elementType: 'labels.text.fill', stylers: [{ color: '#9898a8' }] },
+      { elementType: 'labels.text.stroke', stylers: [{ color: '#0a0a0f' }] },
+      { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2a2a3e' }] },
+      { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#1a1a2e' }] },
+      { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0d1117' }] },
+      { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#16213e' }] },
+      { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+    ]
+  });
+  placesService = new google.maps.places.PlacesService(map);
+  map.addListener('click', e => {
+    selectedLat = e.latLng.lat();
+    selectedLng = e.latLng.lng();
+    placePin(e.latLng);
+    document.getElementById('scan-btn').disabled = false;
+    setStatus('📍 Zone sélectionnée — cliquez sur Scanner pour lancer.');
+  });
+}
+
+function placePin(latlng) {
+  if (markerPin) markerPin.setMap(null);
+  if (circle) circle.setMap(null);
+  markerPin = new google.maps.Marker({ position: latlng, map, title: 'Centre' });
+  circle = new google.maps.Circle({
+    strokeColor: '#4f8dff', strokeOpacity: 0.8, strokeWeight: 1.5,
+    fillColor: '#4f8dff', fillOpacity: 0.08,
+    map, center: latlng, radius: parseInt(document.getElementById('radius').value)
+  });
+  map.panTo(latlng);
+}
+
+// ═══════════════════════════════════════
+// STATUS
+// ═══════════════════════════════════════
+function setStatus(msg) { document.getElementById('status-bar').innerHTML = msg; }
+function setLoader(msg) { document.getElementById('status-bar').innerHTML = `<div class="loader"><span></span><span></span><span></span></div> ${msg}`; }
+
+// ═══════════════════════════════════════
+// SCAN
+// ═══════════════════════════════════════
+async function runScan() {
+  if (!selectedLat) return;
+  document.getElementById('scan-btn').disabled = true;
+  allResults = [];
+  setLoader('Recherche des établissements...');
+  ['0','1','2','3'].forEach(i => {
+    document.getElementById('panel-'+i).innerHTML = '<div class="empty-state"><p>Chargement...</p></div>';
+  });
+  document.getElementById('s-total').textContent = '…';
+  document.getElementById('s-tel').textContent = '…';
+  document.getElementById('s-mail').textContent = '…';
+  document.getElementById('s-both').textContent = '…';
+  document.getElementById('insight-bar').classList.remove('visible');
+
+  const radius = parseInt(document.getElementById('radius').value);
+  const center = new google.maps.LatLng(selectedLat, selectedLng);
+  const seen = new Set();
+  const places = [];
+
+  const keywords = [
+    'restaurant', 'magasin boutique', 'coiffeur beauté', 'médecin pharmacie',
+    'agence bureau', 'hôtel bar café',
+    'supermarché hypermarché', 'Leclerc Lidl Carrefour', 'Super U Intermarché Aldi',
+    'épicerie alimentation', 'Colruyt Delhaize Casino',
+    'entrepôt logistique', 'usine stockage dépôt', 'centre distribution'
+  ];
+
+  for (const kw of keywords) {
+    await new Promise(resolve => {
+      const cb = (results, status, pagination) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+          results.forEach(p => { if (!seen.has(p.place_id)) { seen.add(p.place_id); places.push(p); } });
+          setLoader(places.length + ' établissements trouvés...');
+          if (pagination && pagination.hasNextPage) setTimeout(() => pagination.nextPage(), 1600);
+          else resolve();
+        } else {
+          if (status === 'REQUEST_DENIED') setStatus('❌ Accès refusé — vérifie que "Places API" est activée.');
+          else if (status === 'OVER_QUERY_LIMIT') setStatus('❌ Quota dépassé — attends quelques secondes.');
+          resolve();
+        }
+      };
+      placesService.nearbySearch({ location: center, radius, keyword: kw }, cb);
+    });
+    await new Promise(r => setTimeout(r, 400));
+  }
+
+  setLoader(`Récupération des détails (0 / ${places.length})...`);
+  let done = 0;
+  for (let i = 0; i < places.length; i += 4) {
+    const batch = places.slice(i, i + 4);
+    await Promise.all(batch.map(place => new Promise(res => {
+      placesService.getDetails({
+        placeId: place.place_id,
+        fields: ['name','formatted_address','formatted_phone_number','website','types','rating']
+      }, (d, s) => {
+        if (s === google.maps.places.PlacesServiceStatus.OK && d) {
+          allResults.push({
+            name: d.name || '', address: d.formatted_address || '',
+            phone: d.formatted_phone_number || '', website: d.website || '',
+            rating: d.rating || '', email: '', _scraped: false,
+            types: (d.types || []).filter(t => !['point_of_interest','establishment'].includes(t)),
+            _idx: allResults.length
+          });
+        }
+        done++;
+        if (done % 5 === 0 || done === places.length)
+          setLoader(`Détails récupérés : ${done} / ${places.length}`);
+        res();
+      });
+    })));
+  }
+
+  // Réindexer
+  allResults.forEach((r, i) => r._idx = i);
+
+  renderAll();
+  document.getElementById('scan-btn').disabled = false;
+  document.getElementById('exp-csv').disabled = false;
+  document.getElementById('exp-json').disabled = false;
+  document.getElementById('scrape-btn').disabled = false;
+  setStatus(`✅ Scan terminé — ${allResults.length} établissements analysés.`);
+
+  const hist = JSON.parse(localStorage.getItem('localscan_history') || '[]');
+  hist.unshift({ date: new Date().toLocaleString('fr-FR'), count: allResults.length, lat: selectedLat, lng: selectedLng, radius });
+  localStorage.setItem('localscan_history', JSON.stringify(hist.slice(0, 20)));
+}
+
+// ═══════════════════════════════════════
+// FILTRES & TRI
+// ═══════════════════════════════════════
+function getFiltered() {
+  const q = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
+  const typeGroups = {
+    'supermarket': ['supermarket','grocery_or_supermarket','hypermarket','convenience_store','food'],
+    'grocery_or_supermarket': ['grocery_or_supermarket','supermarket','food','bakery','meal_takeaway'],
+    'warehouse': ['warehouse','storage','moving_company','transit_station','industrial','logistics'],
+    'health': ['health','doctor','hospital','pharmacy','dentist','physiotherapist','veterinary_care'],
+  };
+
+  let data = allResults.slice();
+
+  if (selectedType) {
+    const group = typeGroups[selectedType];
+    data = group
+      ? data.filter(r => r.types && r.types.some(t => group.includes(t)))
+      : data.filter(r => r.types && r.types.includes(selectedType));
+  }
+
+  if (q) {
+    data = data.filter(r =>
+      r.name.toLowerCase().includes(q) ||
+      r.address.toLowerCase().includes(q) ||
+      (r.email && r.email.toLowerCase().includes(q))
+    );
+  }
+
+  const sort = document.getElementById('sort-select')?.value || 'default';
+  if (sort === 'score-desc') data.sort((a,b) => computeScore(b) - computeScore(a));
+  else if (sort === 'name-asc')  data.sort((a,b) => a.name.localeCompare(b.name));
+  else if (sort === 'name-desc') data.sort((a,b) => b.name.localeCompare(a.name));
+  else if (sort === 'rating-desc') data.sort((a,b) => (b.rating||0) - (a.rating||0));
+  else if (sort === 'status') {
+    const order = {client:0, interesse:1, contacte:2, nouveau:3, negatif:4, undefined:5};
+    data.sort((a,b) => (order[getCRM(a).status]||5) - (order[getCRM(b).status]||5));
+  }
+
+  return data;
+}
+
+// ═══════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════
+function renderAll() {
+  const data = getFiltered();
+  const withPhone   = data.filter(r => r.phone);
+  const withWebsite = data.filter(r => r.website);
+  const withBoth    = data.filter(r => r.phone && r.website);
+  const withEmail   = data.filter(r => r.email);
+
+  document.getElementById('s-total').textContent = data.length;
+  document.getElementById('s-tel').textContent   = withPhone.length;
+  document.getElementById('s-mail').textContent  = withWebsite.length;
+  document.getElementById('s-email').textContent = withEmail.length;
+  document.getElementById('s-both').textContent  = withBoth.length;
+  document.getElementById('badge-0').textContent = data.length;
+  document.getElementById('badge-1').textContent = withBoth.length;
+  document.getElementById('badge-2').textContent = withWebsite.length;
+  document.getElementById('badge-3').textContent = withEmail.length;
+
+  buildInsights(data);
+  renderTable0(data);
+  renderTable1(withBoth);
+  renderTable2(withWebsite);
+  renderTable3(withEmail);
+}
+
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function crmStatusBadge(r) {
+  const crm = getCRM(r);
+  const s = crm.status || 'nouveau';
+  const map2 = { nouveau:'', contacte:'<span class="badge badge-blue" style="font-size:0.65rem;">Contacté</span>', interesse:'<span class="badge badge-green" style="font-size:0.65rem;">Intéressé</span>', negatif:'<span class="badge" style="background:rgba(255,91,91,0.1);color:var(--red);font-size:0.65rem;">Négatif</span>', client:'<span class="badge badge-purple" style="font-size:0.65rem;">Client</span>' };
+  return map2[s] || '';
+}
+
+function noteIndicator(r) {
+  const crm = getCRM(r);
+  return crm.note ? '📝' : '';
+}
+
+function groupByCategory(data) {
+  const groups = {};
+  for (const r of data) {
+    const key = getCategoryForRecord(r);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  }
+  const ordered = [];
+  for (const cat of CATEGORIES) {
+    if (groups[cat.key] && groups[cat.key].length > 0)
+      ordered.push({ cat, records: groups[cat.key] });
+  }
+  return ordered;
+}
+
+function chevronSVG() {
+  return `<svg class="cat-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>`;
+}
+function toggleGroup(el) { el.closest('.cat-group').classList.toggle('collapsed'); }
+
+function renderGrouped(panelId, data, rowFn, emptyMsg, theadHtml) {
+  const el = document.getElementById(panelId);
+  if (!data.length) { el.innerHTML = emptyState(emptyMsg); return; }
+
+  const q = (document.getElementById('search-input')?.value || '').trim();
+  const sort = document.getElementById('sort-select')?.value || 'default';
+  const noGroup = selectedType || q || sort !== 'default';
+
+  if (noGroup) {
+    el.innerHTML = `<table><thead><tr>${theadHtml}</tr></thead><tbody>${data.map(rowFn).join('')}</tbody></table>`;
+    return;
+  }
+  const grouped = groupByCategory(data);
+  el.innerHTML = grouped.map(({ cat, records }) => `
+    <div class="cat-group">
+      <div class="cat-header" onclick="toggleGroup(this)">
+        <span class="cat-icon">${cat.icon}</span>
+        <span class="cat-name">${cat.label}</span>
+        <span class="cat-count">${records.length}</span>
+        ${chevronSVG()}
+      </div>
+      <div class="cat-body">
+        <table><thead><tr>${theadHtml}</tr></thead><tbody>${records.map(rowFn).join('')}</tbody></table>
+      </div>
+    </div>`).join('');
+}
+
+function renderTable0(data) {
+  const thead = `<th>Score</th><th>Nom</th><th>Adresse</th><th>Téléphone</th><th>Email</th><th>Site web</th><th>Statut</th>`;
+  const row = r => {
+    const s = computeScore(r);
+    return `<tr onclick="openDetail(${r._idx})">
+      <td><span class="score-ring ${scoreClass(s)}" style="width:26px;height:26px;font-size:0.65rem;">${s}</span></td>
+      <td title="${esc(r.name)}" style="font-weight:500;">${esc(r.name)} ${noteIndicator(r)}</td>
+      <td class="muted" title="${esc(r.address)}">${esc(r.address)||'—'}</td>
+      <td>${r.phone ? `<span class="badge badge-green">${esc(r.phone)}</span>` : '<span class="muted">—</span>'}</td>
+      <td>${r.email ? `<a class="email-link" href="mailto:${esc(r.email)}" onclick="event.stopPropagation()">${esc(r.email)}</a>` : (r.website && !r._scraped ? '<span class="muted" style="font-size:0.72rem;">non scrapé</span>' : '<span class="muted">—</span>')}</td>
+      <td>${r.website ? `<a href="${esc(r.website)}" target="_blank" onclick="event.stopPropagation()">${r.website.replace(/^https?:\/\/(www\.)?/,'').slice(0,24)}</a>` : '<span class="muted">—</span>'}</td>
+      <td>${crmStatusBadge(r)}</td>
+    </tr>`;
+  };
+  renderGrouped('panel-0', data, row, 'Aucun établissement trouvé dans cette zone.', thead);
+}
+
+function renderTable1(data) {
+  const thead = `<th>Score</th><th>Nom</th><th>Adresse</th><th>Téléphone</th><th>Email</th><th>Site web</th>`;
+  const row = r => {
+    const s = computeScore(r);
+    return `<tr onclick="openDetail(${r._idx})">
+      <td><span class="score-ring ${scoreClass(s)}" style="width:26px;height:26px;font-size:0.65rem;">${s}</span></td>
+      <td title="${esc(r.name)}">${esc(r.name)} ${noteIndicator(r)}</td>
+      <td class="muted">${esc(r.address)||'—'}</td>
+      <td><span class="badge badge-green">${esc(r.phone)}</span></td>
+      <td>${r.email ? `<a class="email-link" href="mailto:${esc(r.email)}" onclick="event.stopPropagation()">${esc(r.email)}</a>` : '<span class="muted">—</span>'}</td>
+      <td><a href="${esc(r.website)}" target="_blank" onclick="event.stopPropagation()">${r.website.replace(/^https?:\/\/(www\.)?/,'').slice(0,30)}</a></td>
+    </tr>`;
+  };
+  renderGrouped('panel-1', data, row, 'Aucun établissement avec téléphone ET site web.', thead);
+}
+
+function renderTable2(data) {
+  const thead = `<th>Score</th><th>Nom</th><th>Adresse</th><th>Email</th><th>Site web</th>`;
+  const row = r => {
+    const s = computeScore(r);
+    return `<tr onclick="openDetail(${r._idx})">
+      <td><span class="score-ring ${scoreClass(s)}" style="width:26px;height:26px;font-size:0.65rem;">${s}</span></td>
+      <td title="${esc(r.name)}">${esc(r.name)} ${noteIndicator(r)}</td>
+      <td class="muted">${esc(r.address)||'—'}</td>
+      <td>${r.email ? `<a class="email-link" href="mailto:${esc(r.email)}" onclick="event.stopPropagation()">${esc(r.email)}</a>` : '<span class="muted">—</span>'}</td>
+      <td><a href="${esc(r.website)}" target="_blank" onclick="event.stopPropagation()">${r.website.replace(/^https?:\/\/(www\.)?/,'').slice(0,36)}</a></td>
+    </tr>`;
+  };
+  renderGrouped('panel-2', data, row, 'Aucun établissement avec site web trouvé.', thead);
+}
+
+function renderTable3(data) {
+  const thead = `<th>Score</th><th>Nom</th><th>Email</th><th>Téléphone</th><th>Site web</th><th>Note</th>`;
+  const row = r => {
+    const s = computeScore(r);
+    return `<tr onclick="openDetail(${r._idx})">
+      <td><span class="score-ring ${scoreClass(s)}" style="width:26px;height:26px;font-size:0.65rem;">${s}</span></td>
+      <td title="${esc(r.name)}">${esc(r.name)} ${noteIndicator(r)}</td>
+      <td><a class="email-link" href="mailto:${esc(r.email)}" onclick="event.stopPropagation()">${esc(r.email)}</a></td>
+      <td>${r.phone ? `<span class="badge badge-green">${esc(r.phone)}</span>` : '<span class="muted">—</span>'}</td>
+      <td>${r.website ? `<a href="${esc(r.website)}" target="_blank" onclick="event.stopPropagation()">${r.website.replace(/^https?:\/\/(www\.)?/,'').slice(0,30)}</a>` : '<span class="muted">—</span>'}</td>
+      <td class="muted">${r.rating ? '⭐ '+r.rating : '—'}</td>
+    </tr>`;
+  };
+  renderGrouped('panel-3', data, row, 'Aucun email trouvé. Lancez le scraping via le bouton "Scraper emails".', thead);
+}
+
+// ═══════════════════════════════════════
+// EMAIL SCRAPING
+// ═══════════════════════════════════════
+const PROXY_BASE = 'http://127.0.0.1:3131';
+let proxyOnline = false;
+
+async function checkProxy() {
+  try {
+    const res = await fetch(`${PROXY_BASE}/ping`, { signal: AbortSignal.timeout(2000) });
+    const json = await res.json();
+    proxyOnline = json.status === 'ok';
+  } catch(e) { proxyOnline = false; }
+  const dot = document.getElementById('proxy-dot');
+  const txt = document.getElementById('proxy-status-text');
+  if (proxyOnline) { dot.className = 'api-dot ok'; txt.textContent = 'Proxy actif ✓'; }
+  else { dot.className = 'api-dot'; dot.style.background = 'var(--red)'; txt.textContent = 'Proxy inactif'; }
+}
+checkProxy();
+setInterval(checkProxy, 5000);
+
+const EMAIL_BLACKLIST = ['sentry.io','wixpress.com','example.com','domain.com','yoursite','wordpress.com','squarespace.com','shopify.com','wix.com','schemas.','@2x','@3x'];
+function isValidEmail(email) {
+  if (!email) return false;
+  const lower = email.toLowerCase();
+  if (EMAIL_BLACKLIST.some(b => lower.includes(b))) return false;
+  if (/\.(png|jpg|jpeg|gif|svg|webp|css|js|woff|ttf|pdf)$/i.test(lower)) return false;
+  if (lower.split('@')[0].length < 2) return false;
+  return true;
+}
+
+function extractEmails(html) {
+  const reMail = /mailto:([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/gi;
+  const reRaw  = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
+  const fromMailto = [...html.matchAll(reMail)].map(m => m[1]);
+  const fromRaw = html.match(reRaw) || [];
+  return [...new Set([...fromMailto, ...fromRaw])].filter(isValidEmail);
+}
+
+async function fetchViaProxy(targetUrl) {
+  const res = await fetch(`${PROXY_BASE}/fetch?url=${encodeURIComponent(targetUrl)}`, { signal: AbortSignal.timeout(6000) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.text();
+}
+
+async function scrapeEmailFromSite(siteUrl) {
+  try { const html = await fetchViaProxy(siteUrl); const emails = extractEmails(html); if (emails.length) return emails[0]; } catch(e) {}
+  try {
+    const base = new URL(siteUrl);
+    for (const path of ['/contact', '/nous-contacter', '/about', '/a-propos']) {
+      try {
+        const html2 = await fetchViaProxy(base.origin + path);
+        const emails2 = extractEmails(html2);
+        if (emails2.length) return emails2[0];
+      } catch(e) {}
+    }
+  } catch(e) {}
+  return null;
+}
+
+let scrapeAbort = false;
+async function runEmailScrape() {
+  await checkProxy();
+  if (!proxyOnline) { setStatus('❌ Proxy inactif — lance d\'abord : node proxy-server.js'); return; }
+  const toScrape = allResults.filter(r => r.website && !r._scraped);
+  if (!toScrape.length) { setStatus('⚠️ Aucun site web à scraper. Lancez d\'abord un scan.'); return; }
+  scrapeAbort = false;
+  const btn = document.getElementById('scrape-btn');
+  btn.innerHTML = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg> Arrêter`;
+  btn.onclick = () => { scrapeAbort = true; btn.disabled = true; };
+  const scrapeBar = document.getElementById('scrape-bar');
+  scrapeBar.classList.add('visible');
+  const progress = document.getElementById('scrape-progress');
+  const countEl  = document.getElementById('scrape-count');
+  const statusEl = document.getElementById('scrape-status-text');
+  let done = 0, found = 0;
+  const total = toScrape.length;
+  for (let i = 0; i < toScrape.length; i += 10) {
+    if (scrapeAbort) break;
+    const batch = toScrape.slice(i, i + 10);
+    await Promise.all(batch.map(async (r) => {
+      r._scraped = true;
+      try { const email = await scrapeEmailFromSite(r.website); if (email) { r.email = email; found++; } } catch(e) {}
+      done++;
+      progress.style.width = Math.round(done / total * 100) + '%';
+      countEl.textContent = `${done} / ${total} (${found} ✉️)`;
+      statusEl.textContent = `Scraping — ${r.name.slice(0,32)}...`;
+    }));
+    renderAll();
+    await new Promise(r => setTimeout(r, 50));
+  }
+  scrapeBar.classList.remove('visible');
+  btn.innerHTML = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg> Re-scraper`;
+  btn.onclick = runEmailScrape;
+  btn.disabled = false;
+  setStatus(`✅ Scraping terminé — ${found} email(s) sur ${done} sites analysés.`);
+  switchTab(3);
+  renderAll();
+}
+
+// ═══════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════
+function emptyState(msg) {
+  return `<div class="empty-state"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><p>${msg}</p></div>`;
+}
+
+function switchTab(i) {
+  activeTab = i;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab')[i].classList.add('active');
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-'+i).classList.add('active');
+}
+
+function exportCSV() {
+  const data = getFiltered();
+  const rows = [['Nom','Adresse','Téléphone','Email','Site web','Note','Statut CRM','Score']];
+  data.forEach(r => {
+    const crm = getCRM(r);
+    rows.push([r.name, r.address, r.phone, r.email||'', r.website, r.rating, crm.status||'nouveau', computeScore(r)].map(v => `"${(v||'').toString().replace(/"/g,'""')}"`));
+  });
+  download(rows.map(r=>r.join(',')).join('\n'), 'localscanv2_export.csv', 'text/csv;charset=utf-8;');
+}
+function exportJSON() {
+  const data = getFiltered().map(r => ({ ...r, crm: getCRM(r), score: computeScore(r) }));
+  download(JSON.stringify(data, null, 2), 'localscanv2_export.json', 'application/json');
+}
+function download(content, filename, type) {
+  const blob = new Blob(['\uFEFF'+content], { type });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function showHistory() {
+  alert('Historique des scans :\n\n' + (()=>{
+    const h = JSON.parse(localStorage.getItem('localscan_history')||'[]');
+    return h.length ? h.map(s=>`• ${s.date} — ${s.count} établissements (rayon ${s.radius}m)`).join('\n') : 'Aucun scan effectué.';
+  })());
+}
+function showSettings() {
+  alert('LocalScan v2\n\nFonctionnalités :\n• Scanner de commerces Google Places\n• Scraping email via proxy local\n• Score de contactabilité\n• CRM intégré (statuts + notes)\n• Résumé intelligent de zone\n• Tri, recherche, filtres\n• Export CSV/JSON avec statut CRM');
+}
+</script>
+</body>
+</html>
